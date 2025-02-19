@@ -22,6 +22,18 @@ def is_single_entry(row):
     # Check if the code contains only alphanumeric characters and is not empty
     return bool(wers_code and re.match(r'^[A-Za-z0-9]+$', wers_code))
 
+# Function to extract the alphanumeric code from the end of Feature WERS Description
+def extract_end_code(description):
+    if not isinstance(description, str):
+        return None
+    # Split by any separator and get the last part
+    parts = re.split(r'[-\s]+', description.strip())
+    if parts:
+        last_part = parts[-1]
+        print(f"Description: {description} -> Last part: {last_part}")  # Debug print
+        return last_part
+    return None
+
 @app.route('/')
 def upload_files():
     return render_template('upload.html')
@@ -56,6 +68,91 @@ def process_files():
     except Exception as e:
         return f"Error reading Excel file: {e}"
 
+    # Ensure all required columns exist
+    required_excel_columns = ['Feature WERS Code', 'Feature WERS Description', 'Top Family WERS Code', 'Top Family Engineering Description']
+    for col in required_excel_columns:
+        if col not in excel_data.columns:
+            return f"Column '{col}' not found in the Excel file."
+
+    # Create mappings
+    feature_description_map = {}
+    top_family_map = {}  # New mapping to store top family for each feature code
+    
+    print("Creating mappings...")  # Debug print
+    
+    # Process the Excel file to identify YZA family codes
+    for idx, row in excel_data.iterrows():
+        try:
+            feature_code = str(row['Feature WERS Code']).strip() if pd.notna(row['Feature WERS Code']) else None
+            top_family = str(row['Top Family WERS Code']).strip() if pd.notna(row['Top Family WERS Code']) else None
+            description = str(row['Feature WERS Description']).strip() if pd.notna(row['Feature WERS Description']) else None
+            
+            if feature_code and description and top_family:
+                # Check if this is a YZA family code
+                if top_family == 'YZA':
+                    # Store the top family mapping
+                    top_family_map[feature_code] = top_family
+                    
+                    # Extract the end code from the description
+                    end_code = extract_end_code(description)
+                    if end_code:
+                        feature_description_map[feature_code] = end_code
+                        print(f"Mapped YZA code {feature_code} -> {end_code} from '{description}'")  # Debug print
+        except Exception as e:
+            print(f"Error processing row {idx}: {e}")  # Debug print
+            continue
+    
+    print("\nFeature Description Map:", feature_description_map)  # Debug print
+    print("\nTop Family Map:", top_family_map)  # Debug print
+
+    try:
+        voci_data = pd.read_excel(voci_excel_path, header=voci_header - 1)
+    except Exception as e:
+        return f"Error reading VOCI Excel file: {e}"
+
+    required_columns = ['WERS Code', 'Sales Code']
+    for col in required_columns:
+        if col not in voci_data.columns:
+            return f"Column '{col}' not found in the VOCI Excel file."
+
+    voci_codes = voci_data[['WERS Code', 'Sales Code']].dropna().astype(str)
+    
+    # Create a mapping from WERS Code to Sales Code
+    single_code_sales = {}
+    group_code_sales = {}
+
+    # First pass: identify all single entries
+    for index, row in voci_codes.iterrows():
+        wers_code = normalize_code(row['WERS Code'])
+        sales_code = row['Sales Code']
+        
+        if wers_code and is_single_entry(row):
+            # Handle YZA family codes
+            if wers_code in top_family_map:
+                print(f"\nProcessing YZA family code: {wers_code}")
+                if wers_code in feature_description_map:
+                    end_code = feature_description_map[wers_code]
+                    print(f"Using end code for {wers_code}: {end_code}")
+                    sales_code = end_code
+            single_code_sales[wers_code] = sales_code
+
+    # Second pass: add group entries only if no single entry exists
+    for index, row in voci_codes.iterrows():
+        wers_code = normalize_code(row['WERS Code'])
+        sales_code = row['Sales Code']
+        
+        if wers_code and not is_single_entry(row):
+            # Handle YZA family codes
+            if wers_code in top_family_map:
+                print(f"\nProcessing YZA family code (group): {wers_code}")
+                if wers_code in feature_description_map:
+                    end_code = feature_description_map[wers_code]
+                    print(f"Using end code for {wers_code}: {end_code}")
+                    sales_code = end_code
+            if wers_code not in single_code_sales:
+                group_code_sales[wers_code] = sales_code
+
+    results = []
     column_name = 'Feature WERS Code'
     if column_name not in excel_data.columns:
         return f"Column '{column_name}' not found in the Excel file."
@@ -79,47 +176,6 @@ def process_files():
         normalized_code = normalize_code(code)
         if code in full_text or normalized_code in full_text:
             codes_found_in_word.append(code)
-
-    try:
-        voci_data = pd.read_excel(voci_excel_path, header=voci_header - 1)
-    except Exception as e:
-        return f"Error reading VOCI Excel file: {e}"
-
-    required_columns = ['WERS Code', 'Sales Code']
-    for col in required_columns:
-        if col not in voci_data.columns:
-            return f"Column '{col}' not found in the VOCI Excel file."
-
-    voci_codes = voci_data[['WERS Code', 'Sales Code']].dropna().astype(str)
-
-    # Create a mapping from WERS Code to Sales Code
-    single_code_sales = {}
-    group_code_sales = {}
-
-    # First pass: identify all single entries
-    for index, row in voci_codes.iterrows():
-        wers_code = normalize_code(row['WERS Code'])
-        sales_code = row['Sales Code']
-        
-        if wers_code and is_single_entry(row):
-            single_code_sales[wers_code] = sales_code
-
-    # Second pass: add group entries only if no single entry exists
-    for index, row in voci_codes.iterrows():
-        wers_code = normalize_code(row['WERS Code'])
-        sales_code = row['Sales Code']
-        
-        if wers_code and not is_single_entry(row):
-            if wers_code not in single_code_sales:  # Only add if no single entry exists
-                group_code_sales[wers_code] = sales_code
-
-    results = []
-    for code in codes_found_in_word:
-        normalized_code = normalize_code(code)
-        
-        # Determine sales code, prioritizing single sales codes
-        chosen_sales_code = single_code_sales.get(normalized_code, group_code_sales.get(normalized_code, code))
-        results.append((code, chosen_sales_code))
 
     # Load the existing Excel workbook
     wb = load_workbook(excel_path)
@@ -156,4 +212,5 @@ def download_file(filename):
     return send_file(file_path, as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
