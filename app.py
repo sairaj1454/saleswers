@@ -14,7 +14,7 @@ os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 # Function to normalize WERS codes
 def normalize_code(code):
-    if code is None:
+    if not isinstance(code, str):  # Ensure it's a string
         return ""
     code = re.sub(r'[-_#]', ' ', code)
     code = re.sub(r'\s*--\s*', ' ', code)
@@ -23,12 +23,12 @@ def normalize_code(code):
 
 # Function to determine if a row corresponds to a single entry
 def is_single_entry(row):
-    wers_code = str(row['WERS Code'])
+    wers_code = str(row['WERS Code']) if pd.notna(row['WERS Code']) else ""
     return bool(wers_code and re.match(r'^[A-Za-z0-9]+$', wers_code))
 
 # Function to extract the alphanumeric code from the end of Feature WERS Description
 def extract_end_code(description):
-    if not isinstance(description, str):
+    if not isinstance(description, str):  # Ensure it's a string
         return None
     parts = re.split(r'[-\s]+', description.strip())
     return parts[-1] if parts else None
@@ -40,26 +40,30 @@ def upload_files():
 @app.route('/upload', methods=['POST'])
 def process_files():
     try:
+        # Validate file uploads
         if 'excel_file' not in request.files or 'word_file' not in request.files or 'voci_excel_file' not in request.files:
             return "Missing file(s)", 400
         
+        # Get files and header row numbers
         excel_file = request.files['excel_file']
         word_file = request.files['word_file']
         voci_excel_file = request.files['voci_excel_file']
         excel_header = int(request.form['excel_header'])
         voci_header = int(request.form['voci_header'])
 
+        # Save files
         excel_path = os.path.join(UPLOADS_DIR, excel_file.filename)
         word_path = os.path.join(UPLOADS_DIR, word_file.filename)
         voci_excel_path = os.path.join(UPLOADS_DIR, voci_excel_file.filename)
-
         excel_file.save(excel_path)
         word_file.save(word_path)
         voci_excel_file.save(voci_excel_path)
 
+        # Read Excel files
         excel_data = pd.read_excel(excel_path, header=excel_header - 1)
         voci_data = pd.read_excel(voci_excel_path, header=voci_header - 1)
 
+        # Validate required columns
         required_excel_columns = ['Feature WERS Code', 'Feature WERS Description', 'Top Family WERS Code']
         for col in required_excel_columns:
             if col not in excel_data.columns:
@@ -95,6 +99,7 @@ def process_files():
                     sales_code = feature_description_map[wers_code]
                 single_code_sales[wers_code] = sales_code
 
+        # Read Word document
         try:
             doc = Document(word_path)
         except Exception as e:
@@ -103,9 +108,10 @@ def process_files():
         text_content = ' '.join(paragraph.text for paragraph in doc.paragraphs)
         codes_found_in_word = [code for code in excel_data['Feature WERS Code'].dropna().astype(str).tolist() if code in text_content]
 
+        # Update Excel file
         wb = load_workbook(excel_path)
         ws = wb.active
-        sales_code_col = 5
+        sales_code_col = 5  # Assuming column 5 is for Sales Code
         
         for row in range(2, ws.max_row + 1):
             wers_code_cell = ws.cell(row=row, column=3)
@@ -114,6 +120,7 @@ def process_files():
             if wers_code in single_code_sales:
                 sales_code_cell.value = single_code_sales[wers_code]
 
+        # Save updated Excel file
         updated_excel_filename = f"updated_{excel_file.filename}"
         updated_excel_path = os.path.join(UPLOADS_DIR, updated_excel_filename)
         wb.save(updated_excel_path)
