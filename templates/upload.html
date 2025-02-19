@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Sales WERS Mapping - Upload Files</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            padding-top: 70px; /* Offset the navbar height */
+            padding-bottom: 20px;
+        }
+        .btn-upload {
+            background-color: #000;
+            color: #fff;
+            border-color: #000;
+        }
+        .btn-upload:hover {
+            background-color: #333;
+            border-color: #333;
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        .navbar-brand img {
+            max-height: 50px;
+            margin-right: 10px;
+        }
+        .upload-section {
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            overflow-x: auto; /* Allow horizontal scroll if needed */
+        }
+        .form-control-file {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <a class="navbar-brand" href="#">
+            <img src="https://miro.medium.com/v2/resize:fit:2400/1*nD4FMW00HXbn2lWqxSQIDg.jpeg" alt="Ford Logo">
+            Sales WERS Mapping
+        </a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="/">Upload Files</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/results">View Results</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="card upload-section">
+            <div class="card-body">
+                <h1 class="mb-4">Upload Excel and Word Files</h1>
+                <form action="/upload" method="post" enctype="multipart/form-data" class="mb-5">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <tbody>
+                                <tr>
+                                    <td>Excel File:</td>
+                                    <td>
+                                        <div class="form-group">
+                                            <input type="file" id="excel_file" name="excel_file" class="form-control-file" required>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Excel File Header Row:</td>
+                                    <td>
+                                        <div class="form-group">
+                                            <input type="number" id="excel_header" name="excel_header" class="form-control" value="6" required>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Word File:</td>
+                                    <td>
+                                        <div class="form-group">
+                                            <input type="file" id="word_file" name="word_file" class="form-control-file" required>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>VOCI Excel File:</td>
+                                    <td>
+                                        <div class="form-group">
+                                            <input type="file" id="voci_excel_file" name="voci_excel_file" class="form-control-file" required>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>VOCI Excel File Header Row:</td>
+                                    <td>
+                                        <div class="form-group">
+                                            <input type="number" id="voci_header" name="voci_header" class="form-control" value="12" required>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="submit" class="btn btn-upload btn-block">Upload</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
